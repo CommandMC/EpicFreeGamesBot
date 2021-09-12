@@ -12,7 +12,10 @@ def get_free_games() -> list[dict]:
     if not res.ok:
         return []
 
-    free_games = res.json()['data']['Catalog']['searchStore']['elements']
+    try:
+        free_games = res.json()['data']['Catalog']['searchStore']['elements']
+    except TypeError:
+        return []
     final_free_game_list = []
     for game in free_games:
         # Epic sometimes leaves games that were previously free on that site.
