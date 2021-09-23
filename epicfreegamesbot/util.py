@@ -1,6 +1,8 @@
 import datetime
+import logging
 
 from discord import Embed
+from discord.embeds import EmptyEmbed
 from requests import get, ConnectionError
 
 
@@ -43,14 +45,26 @@ def get_free_games() -> list[dict]:
 
 
 def get_game_embeds(games: list[dict]):
+    logger = logging.getLogger('GameEmbeds')
     embed_list: dict[Embed] = {}
     for game in games:
         start_time = game['promotions']['promotionalOffers'][0]['promotionalOffers'][0]['startDate']
         start_time = datetime.datetime.fromisoformat(start_time[:-1])
+        url = 'https://www.epicgames.com/store/en-US/p/' + game['productSlug'].replace('--', '/')
+        # Since Epic is great, sometimes 'productSlug' works for the URL, and sometimes 'urlSlug' does
+        # Check if product is giving a 404, use url if it does
+        if 'error-404' in get(url).url:
+            logger.info('productSlug did not work, trying urlSlug instead')
+            url = 'https://www.epicgames.com/store/en-US/p/' + game['urlSlug'].replace('--', '/')
+            # If both url and product don't work, just don't give a URL (this shouldn't ever happen)
+            if 'error-404' in get(url).url:
+                logger.info('urlSlug also did not work, not supplying URL')
+                url = EmptyEmbed
+
         embed = Embed(
             title=game['title'],
             description=game['description'],
-            url='https://www.epicgames.com/store/en-US/p/' + game['productSlug'].replace('--', '/'),
+            url=url,
             timestamp=start_time
         )
         embed.set_footer(text='New free game')
