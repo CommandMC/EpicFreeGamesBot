@@ -68,6 +68,8 @@ def get_game_embeds(games: list[dict]):
             timestamp=start_time
         )
         embed.set_footer(text='New free game')
-        embed.set_thumbnail(url=next(link['url'] for link in game['keyImages'] if link['type'] == 'Thumbnail'))
+        embed.set_thumbnail(
+            url=next(link['url'].replace(' ', '%20') for link in game['keyImages'] if link['type'] == 'Thumbnail')
+        )
         embed_list[game['productSlug']] = embed
     return embed_list
