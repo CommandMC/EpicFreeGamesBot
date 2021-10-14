@@ -50,6 +50,9 @@ def get_game_embeds(games: list[dict]):
     for game in games:
         start_time = game['promotions']['promotionalOffers'][0]['promotionalOffers'][0]['startDate']
         start_time = datetime.datetime.fromisoformat(start_time[:-1])
+        # Make sure the game has a productSlug and that it's not empty
+        if 'productSlug' not in game or not game['productSlug']:
+            game['productSlug'] = game['urlSlug']
         url = 'https://www.epicgames.com/store/en-US/p/' + game['productSlug'].replace('--', '/')
         # Since Epic is great, sometimes 'productSlug' works for the URL, and sometimes 'urlSlug' does
         # Check if product is giving a 404, use url if it does
