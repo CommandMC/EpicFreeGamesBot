@@ -1,8 +1,7 @@
 import datetime
 import logging
 
-from discord import Embed
-from discord.embeds import EmptyEmbed
+from interactions import Embed, EmbedFooter, EmbedImageStruct
 from requests import get, ConnectionError
 
 
@@ -44,12 +43,12 @@ def get_free_games() -> list[dict]:
     return final_free_game_list
 
 
+# noinspection PyProtectedMember
 def get_game_embeds(games: list[dict]):
     logger = logging.getLogger('GameEmbeds')
     embed_list: dict[Embed] = {}
     for game in games:
-        start_time = game['promotions']['promotionalOffers'][0]['promotionalOffers'][0]['startDate']
-        start_time = datetime.datetime.fromisoformat(start_time[:-1])
+        start_time = game['promotions']['promotionalOffers'][0]['promotionalOffers'][0]['startDate'][:-1]
         # Make sure the game has a productSlug and that it's not empty
         if 'productSlug' not in game or not game['productSlug']:
             game['productSlug'] = game['urlSlug']
@@ -61,18 +60,36 @@ def get_game_embeds(games: list[dict]):
             url = 'https://www.epicgames.com/store/en-US/p/' + game['urlSlug'].replace('--', '/')
             # If both url and product don't work, just don't give a URL (this shouldn't ever happen)
             if 'error-404' in get(url).url:
-                logger.info('urlSlug also did not work, not supplying URL')
-                url = EmptyEmbed
+                logger.info('urlSlug also did not work, not supplying game-specific URL')
+                url = 'https://www.epicgames.com/store/en-US/free-games'
 
+        embed_footer = EmbedFooter(text='New free game')._json
+        embed_thumbnail = EmbedImageStruct(url=next(
+            link['url'].replace(' ', '%20')
+            for link in game['keyImages']
+            if link['type'] in ('Thumbnail', 'DieselStoreFrontWide')
+        ))._json
         embed = Embed(
             title=game['title'],
             description=game['description'],
             url=url,
-            timestamp=start_time
-        )
-        embed.set_footer(text='New free game')
-        embed.set_thumbnail(
-            url=next(link['url'].replace(' ', '%20') for link in game['keyImages'] if link['type'] == 'Thumbnail')
+            timestamp=start_time,
+            footer=embed_footer,
+            thumbnail=embed_thumbnail
         )
         embed_list[game['productSlug']] = embed
     return embed_list
+
+
+def main():
+    free_games = get_free_games()
+    if len(free_games) == 1:
+        print('1 game is available for free right now:')
+    else:
+        print(f'{len(free_games)} games are available for free right now:')
+    for game in free_games:
+        print(f' - {game["title"]}')
+
+
+if __name__ == '__main__':
+    main()

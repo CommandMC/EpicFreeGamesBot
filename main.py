@@ -1,10 +1,11 @@
 import logging
+
 from epicfreegamesbot.bot import EpicFreeGamesBot
 
 
 def main():
     bot = EpicFreeGamesBot('config.json')
-    bot.run(bot.config['bot_token'])
+    bot.start()
 
 
 if __name__ == '__main__':
