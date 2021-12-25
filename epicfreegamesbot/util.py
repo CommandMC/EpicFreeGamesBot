@@ -32,7 +32,7 @@ def get_free_games() -> list[dict]:
         # Epic hasn't messed this up yet, but I'd say it's only a matter of time
         end_date = promotional_offers['endDate']
         end_date = datetime.datetime.fromisoformat(end_date[:-1])
-        if not end_date > datetime.datetime.now():
+        if not end_date > datetime.datetime.utcnow():
             continue
 
         # Make sure the game is actually free and not just discounted
