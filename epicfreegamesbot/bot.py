@@ -112,7 +112,7 @@ class EpicFreeGamesBot(Client):
     async def check_and_update_games(self):
         self.update_free_games()
         embed_list = get_game_embeds(self.free_games)
-        guilds = self.http.cache.guilds.values.values()
+        guilds = [Guild(**x) for x in await self.http.get_self_guilds()]
         # Uncomment to test on just one guild
         # guilds = [Guild(** await self.http.get_guild(guild_id_here))]
         for guild in guilds:
