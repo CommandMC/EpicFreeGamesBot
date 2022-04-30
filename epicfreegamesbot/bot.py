@@ -3,19 +3,19 @@ import json
 import logging
 from os import path
 
-from interactions import CommandContext, Client, Option, OptionType, User, Guild, Embed, Channel, ChannelType
+from interactions import CommandContext, Client, Option, OptionType, Guild, Embed, Channel, ChannelType
 
 from epicfreegamesbot.permissions import Permissions, has_permission
 from epicfreegamesbot.util import get_free_games, get_game_embeds
 
 
 class EpicFreeGamesBot(Client):
-    def __init__(self, config_file, *args, **kwargs):
+    def __init__(self, config_file, **kwargs):
         if not path.isfile(config_file):
             raise ValueError('Config file is not accessible')
         with open(config_file) as f:
             self.config = json.load(f)
-        super(EpicFreeGamesBot, self).__init__(token=self.config['bot_token'], *args, **kwargs)
+        super(EpicFreeGamesBot, self).__init__(token=self.config['bot_token'], **kwargs)
         self.config_file = config_file
         self.free_games = []
         self.logger = logging.getLogger('EpicFreeGamesBot')
@@ -28,25 +28,25 @@ class EpicFreeGamesBot(Client):
         self.sync_commands()
 
     async def on_ready(self):
-        self.logger.info('Logged in as {}'.format(User(**await self.http.get_self()).username))
-        guild_list = self.http.cache.guilds.values.values()
-        self.logger.info('The bot is on {} servers'.format(len(guild_list)))
+        self.logger.info(f'Logged in as {self.me.name}')
+        guild_list = self._http.cache.guilds.values.values()
+        self.logger.info(f'The bot is on {len(guild_list)} servers')
         for guild in guild_list:
-            self.logger.info('- {} ({})'.format(guild.name, guild.id))
+            self.logger.info(f'- {guild.name} ({guild.id})')
         self.logger.info('on_ready done, starting loop')
         while True:
             await self.check_and_update_games()
             await asyncio.sleep(600)
 
     async def on_guild_join(self, guild: Guild):
-        self.logger.info('Joined guild {}'.format(guild.name))
+        self.logger.info(f'Joined guild {guild.name}')
         if str(guild.id) not in self.config:
             self.config[str(guild.id)] = {}
         self.sync_commands(guild.id)
 
     def sync_commands(self, guilds=None):
         if guilds is None:
-            guilds = self.http.cache.guilds.values.values()
+            guilds = [Guild(**x) for x in await self._http.get_self_guilds()]
         self.command(
             name='set-game-channel',
             description='Sets the channel to send new free game announcements into',
@@ -61,9 +61,9 @@ class EpicFreeGamesBot(Client):
 
     async def set_game_channel(self, ctx: CommandContext, channel: str):
         await ctx.defer(True)
-        self.logger.info('{} ran command'.format(ctx.author.nick))
-        channel = Channel(**await self.http.get_channel(channel))
-        guild = Guild(**await self.http.get_guild(ctx.guild_id))
+        self.logger.info(f'{ctx.author.nick} ran command')
+        channel = Channel(**await self._http.get_channel(channel))
+        guild = Guild(**await self._http.get_guild(ctx.guild_id))
 
         # Make sure the user actually supplied a text channel
         if channel.type not in (ChannelType.GUILD_TEXT, ChannelType.GUILD_NEWS):
@@ -88,7 +88,7 @@ class EpicFreeGamesBot(Client):
             self.config[str(ctx.guild_id)]['announcementChannel'] = int(channel.id)
         self.sync_config()
         await ctx.send(
-            content='Set the game announcement channel to <#{}>'.format(channel.id),
+            content=f'Set the game announcement channel to <#{channel.id}>',
             ephemeral=True
         )
 
@@ -112,7 +112,7 @@ class EpicFreeGamesBot(Client):
     async def check_and_update_games(self):
         self.update_free_games()
         embed_list = get_game_embeds(self.free_games)
-        guilds = [Guild(**x) for x in await self.http.get_self_guilds()]
+        guilds = [Guild(**x) for x in await self._http.get_self_guilds()]
         # Uncomment to test on just one guild
         # guilds = [Guild(** await self.http.get_guild(guild_id_here))]
         for guild in guilds:
@@ -126,7 +126,7 @@ class EpicFreeGamesBot(Client):
         if 'announcementChannel' not in self.config[str(guild.id)]:
             return
 
-        channel_to_send: Channel = Channel(**await self.http.get_channel(self.config[str(guild.id)]['announcementChannel']))
+        channel_to_send: Channel = Channel(**await self._http.get_channel(self.config[str(guild.id)]['announcementChannel']))
         game_slug: str
         embed: Embed
         for game_slug, embed in game_embed_dict.items():
@@ -140,16 +140,14 @@ class EpicFreeGamesBot(Client):
             # Try to send them message
             try:
                 # noinspection PyProtectedMember
-                await self.http.send_message(channel_to_send.id, '', embeds=[embed._json])
+                await self._http.send_message(channel_to_send.id, '', embeds=[embed._json])
             # In case we can't send the message, log it
             # For instance, the channel could no longer exist, or the bot could not have access to it
             except Exception as e:
-                self.logger.error('Unable to send message into #{}: {}'.format(channel_to_send.name, e))
+                self.logger.error(f'Unable to send message into #{channel_to_send.name}: {e}')
                 continue
             # If the announcement worked, store and log it
-            self.logger.info('Sent free game {} into #{} on server {}'.format(
-                embed.title, channel_to_send.name, guild.name
-            ))
+            self.logger.info(f'Sent free game {embed.title} into #{channel_to_send.name} on server {guild.name}')
             self.config[str(guild.id)]['announcedGames'].append(game_slug)
 
     def update_free_games(self):
@@ -160,5 +158,5 @@ class EpicFreeGamesBot(Client):
         # If the free games haven't changed, don't do anything
         if free_games == self.free_games:
             return
-        self.logger.info('Updated game list ({} game(s))'.format(len(free_games)))
+        self.logger.info(f'Updated game list ({len(free_games)} game(s))')
         self.free_games = free_games
