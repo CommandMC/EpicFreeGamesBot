@@ -25,7 +25,16 @@ class EpicFreeGamesBot(Client):
         # noinspection PyTypeChecker
         self.event(self.on_guild_join, 'on_guild_join')
 
-        self.sync_commands()
+        self.command(
+            name='set-game-channel',
+            description='Sets the channel to send new free game announcements into',
+            options=[Option(
+                name='channel',
+                description='The channel to send new free games in',
+                type=OptionType.CHANNEL,
+                required=True
+            )]
+        )(self.set_game_channel)
 
     async def on_ready(self):
         self.logger.info(f'Logged in as {self.me.name}')
@@ -42,27 +51,10 @@ class EpicFreeGamesBot(Client):
         self.logger.info(f'Joined guild {guild.name}')
         if str(guild.id) not in self.config:
             self.config[str(guild.id)] = {}
-        self.sync_commands(guild.id)
 
-    def sync_commands(self, guilds=None):
-        if guilds is None:
-            guilds = [Guild(**x) for x in await self._http.get_self_guilds()]
-        self.command(
-            name='set-game-channel',
-            description='Sets the channel to send new free game announcements into',
-            scope=guilds,
-            options=[Option(
-                name='channel',
-                description='The channel to send new free games in',
-                type=OptionType.CHANNEL,
-                required=True
-            )]
-        )(self.set_game_channel)
-
-    async def set_game_channel(self, ctx: CommandContext, channel: str):
+    async def set_game_channel(self, ctx: CommandContext, channel: Channel):
         await ctx.defer(True)
-        self.logger.info(f'{ctx.author.nick} ran command')
-        channel = Channel(**await self._http.get_channel(channel))
+        self.logger.info(f'{ctx.author.user.username} ran command set-game-channel')
         guild = Guild(**await self._http.get_guild(ctx.guild_id))
 
         # Make sure the user actually supplied a text channel
