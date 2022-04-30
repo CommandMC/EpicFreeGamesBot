@@ -108,8 +108,12 @@ class EpicFreeGamesBot(Client):
         # Uncomment to test on just one guild
         # guilds = [Guild(** await self.http.get_guild(guild_id_here))]
         for guild in guilds:
-            await self.send_game_announcements(embed_list, guild)
-        self.sync_config()
+            try:
+                await self.send_game_announcements(embed_list, guild)
+            except Exception as e:
+                self.logger.error(f'Got {e} when sending game announcements to {guild.name}, ignoring')
+            else:
+                self.sync_config()
 
     async def send_game_announcements(self, game_embed_dict: dict, guild: Guild):
         if str(guild.id) not in self.config:
@@ -118,7 +122,13 @@ class EpicFreeGamesBot(Client):
         if 'announcementChannel' not in self.config[str(guild.id)]:
             return
 
-        channel_to_send: Channel = Channel(**await self._http.get_channel(self.config[str(guild.id)]['announcementChannel']))
+        try:
+            channel_to_send: Channel = Channel(
+                **await self._http.get_channel(self.config[str(guild.id)]['announcementChannel'])
+            )
+        except ValueError:
+            self.logger.error(f'Got ValueError when fetching channel for {guild.name}, does it still exist?')
+            return
         game_slug: str
         embed: Embed
         for game_slug, embed in game_embed_dict.items():
