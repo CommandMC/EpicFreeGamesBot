@@ -49,19 +49,21 @@ def get_game_embeds(games: list[dict]):
     embed_list: dict[Embed] = {}
     for game in games:
         start_time = game['promotions']['promotionalOffers'][0]['promotionalOffers'][0]['startDate'][:-1]
+
         # Make sure the game has a productSlug and that it's not empty
         if 'productSlug' not in game or not game['productSlug']:
             game['productSlug'] = game['urlSlug']
-        url = 'https://www.epicgames.com/store/en-US/p/' + game['productSlug'].replace('--', '/')
-        # Since Epic is great, sometimes 'productSlug' works for the URL, and sometimes 'urlSlug' does
-        # Check if product is giving a 404, use url if it does
-        if 'error-404' in get(url).url:
-            logger.info('productSlug did not work, trying urlSlug instead')
-            url = 'https://www.epicgames.com/store/en-US/p/' + game['urlSlug'].replace('--', '/')
-            # If both url and product don't work, just don't give a URL (this shouldn't ever happen)
-            if 'error-404' in get(url).url:
-                logger.info('urlSlug also did not work, not supplying game-specific URL')
-                url = 'https://www.epicgames.com/store/en-US/free-games'
+
+        url = ''
+        if game['offerMappings']:
+            for mapping in game['offerMappings']:
+                if mapping['pageType'] == 'productHome':
+                    url = 'https://www.epicgames.com/store/en-US/p/' + mapping['pageSlug']
+                    break
+
+        if not url:
+            logger.info('Unable to get URL from offerMappings, setting generic URL')
+            url = 'https://www.epicgames.com/store/en-US/free-games'
 
         embed_footer = EmbedFooter(text='New free game')._json
         embed_thumbnail = EmbedImageStruct(url=next(
@@ -83,13 +85,17 @@ def get_game_embeds(games: list[dict]):
 
 def main():
     free_games = get_free_games()
-    if len(free_games) == 1:
-        print('1 game is available for free right now:')
-    else:
-        print(f'{len(free_games)} games are available for free right now:')
-    for game in free_games:
-        print(f' - {game["title"]}')
+    embeds = get_game_embeds(free_games)
+    print(embeds)
+    for game_slug, embed in embeds.items():
+        print(game_slug)
+        print(embed.url)
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s] [%(name)s/%(levelname)s] %(message)s',
+        datefmt='%H:%M:%S'
+    )
     main()
