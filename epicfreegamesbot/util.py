@@ -55,14 +55,14 @@ def get_game_embeds(games: list[dict]):
             game['productSlug'] = game['urlSlug']
 
         url = ''
-        if game['offerMappings']:
-            for mapping in game['offerMappings']:
+        if game['catalogNs']['mappings']:
+            for mapping in game['catalogNs']['mappings']:
                 if mapping['pageType'] == 'productHome':
                     url = 'https://www.epicgames.com/store/en-US/p/' + mapping['pageSlug']
                     break
 
         if not url:
-            logger.info('Unable to get URL from offerMappings, setting generic URL')
+            logger.info('Unable to get URL from catalogNs, setting generic URL')
             url = 'https://www.epicgames.com/store/en-US/free-games'
 
         embed_footer = EmbedFooter(text='New free game')._json
