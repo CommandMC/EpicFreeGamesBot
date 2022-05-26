@@ -71,6 +71,8 @@ class EpicFreeGamesBot(Client):
                 ephemeral=True
             )
             return
+        if str(guild.id) not in self.config:
+            self.config[str(guild.id)] = {}
         # If we didn't have an announcement channel set before, announce the current free games in the newly set channel
         if 'announcementChannel' not in self.config[str(ctx.guild_id)]:
             self.config[str(ctx.guild_id)]['announcementChannel'] = int(channel.id)
